@@ -1,0 +1,298 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>French Liaison Detection — Phoneme-level speech analysis</title>
+<meta name="description" content="Automatic detection of French liaisons in read speech using phoneme-level CTC models, eSpeak NG references and alignment.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#0b0f17;--bg2:#111827;--card:#151d2c;--line:#243047;
+  --text:#e6ebf5;--muted:#93a1ba;--accent:#4fc3f7;--ok:#22c55e;--miss:#f97316;--violet:#a78bfa;
+  --radius:14px;--mono:'JetBrains Mono',ui-monospace,monospace;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html{scroll-behavior:smooth}
+body{font-family:'Inter',system-ui,sans-serif;background:var(--bg);color:var(--text);line-height:1.6;-webkit-font-smoothing:antialiased}
+a{color:var(--accent);text-decoration:none}
+a:hover{text-decoration:underline}
+.wrap{max-width:1100px;margin:0 auto;padding:0 24px}
+nav{position:sticky;top:0;z-index:10;background:rgba(11,15,23,.85);backdrop-filter:blur(10px);border-bottom:1px solid var(--line)}
+nav .wrap{display:flex;align-items:center;justify-content:space-between;height:60px}
+.brand{font-weight:700;letter-spacing:.2px;color:var(--text)}
+.brand span{color:var(--accent);font-family:var(--mono)}
+nav ul{display:flex;gap:26px;list-style:none;font-size:14px}
+nav ul a{color:var(--muted)}
+nav ul a:hover{color:var(--text);text-decoration:none}
+header.hero{padding:96px 0 72px;border-bottom:1px solid var(--line);background:radial-gradient(900px 400px at 80% -10%,rgba(79,195,247,.12),transparent 60%),radial-gradient(700px 360px at 0% 10%,rgba(167,139,250,.10),transparent 60%)}
+.eyebrow{font-family:var(--mono);font-size:13px;color:var(--accent);letter-spacing:.5px;text-transform:uppercase}
+h1{font-size:clamp(34px,5vw,54px);line-height:1.1;margin:14px 0 18px;letter-spacing:-1px}
+.lead{font-size:19px;color:var(--muted);max-width:720px}
+.cta{display:flex;gap:12px;margin-top:32px;flex-wrap:wrap}
+.btn{display:inline-block;padding:11px 20px;border-radius:10px;font-weight:600;font-size:15px;border:1px solid var(--line);color:var(--text)}
+.btn.primary{background:var(--accent);color:#06121c;border-color:var(--accent)}
+.btn:hover{text-decoration:none;filter:brightness(1.1)}
+.stats{display:grid;grid-template-columns:repeat(4,1fr);gap:16px;margin-top:56px}
+.stat{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);padding:20px}
+.stat b{display:block;font-size:28px;font-family:var(--mono);color:var(--text)}
+.stat small{color:var(--muted);font-size:13px}
+section{padding:80px 0;border-bottom:1px solid var(--line)}
+h2{font-size:30px;letter-spacing:-.5px;margin-bottom:12px}
+.sub{color:var(--muted);max-width:760px;margin-bottom:40px}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:28px;align-items:start}
+.grid3{display:grid;grid-template-columns:repeat(3,1fr);gap:20px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);padding:26px}
+.card h3{font-size:18px;margin-bottom:8px}
+.card p{color:var(--muted);font-size:15px}
+.tag{display:inline-block;font-family:var(--mono);font-size:11.5px;padding:3px 8px;border-radius:6px;background:#1d2840;color:#b8c7e3;margin:12px 6px 0 0}
+.example{font-size:30px;font-weight:600;margin:6px 0 4px}
+.ipa{font-family:var(--mono);color:var(--violet);font-size:18px}
+.link{color:var(--accent);font-weight:700}
+ul.clean{list-style:none}
+ul.clean li{padding:8px 0 8px 22px;position:relative;color:var(--muted)}
+ul.clean li::before{content:"";position:absolute;left:0;top:17px;width:8px;height:8px;border-radius:2px;background:var(--accent)}
+/* pipeline */
+.pipeline{display:grid;grid-template-columns:repeat(5,1fr);gap:0;align-items:stretch}
+.step{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);padding:20px 16px;position:relative;margin-right:22px}
+.step:last-child{margin-right:0}
+.step:not(:last-child)::after{content:"";position:absolute;right:-17px;top:50%;width:12px;height:12px;border-top:2px solid var(--accent);border-right:2px solid var(--accent);transform:translateY(-50%) rotate(45deg)}
+.step .n{font-family:var(--mono);font-size:12px;color:var(--accent)}
+.step h4{font-size:15px;margin:6px 0}
+.step p{font-size:13px;color:var(--muted)}
+/* demo */
+.demo{background:var(--bg2);border:1px solid var(--line);border-radius:var(--radius);padding:28px}
+.demo-tabs{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:22px}
+.demo-tabs button{font:inherit;font-size:14px;background:var(--card);color:var(--muted);border:1px solid var(--line);border-radius:8px;padding:7px 14px;cursor:pointer}
+.demo-tabs button.on{color:var(--text);border-color:var(--accent)}
+.sentence{font-size:26px;font-weight:600;line-height:2.2}
+.lk{position:relative;display:inline-block;min-width:22px;text-align:center;font-family:var(--mono);font-size:15px;padding:0 6px;border-radius:6px;margin:0 2px;vertical-align:middle}
+.lk.vl{background:rgba(34,197,94,.15);color:var(--ok);border:1px solid rgba(34,197,94,.45)}
+.lk.xl{background:rgba(249,115,22,.15);color:var(--miss);border:1px solid rgba(249,115,22,.45)}
+.rows{display:grid;grid-template-columns:140px 1fr;gap:10px 16px;margin-top:22px;font-size:14px}
+.rows dt{color:var(--muted)}
+.rows dd{font-family:var(--mono);color:var(--text);overflow-wrap:anywhere}
+.legend{display:flex;gap:18px;margin-top:18px;font-size:13px;color:var(--muted)}
+.legend i{display:inline-block;width:10px;height:10px;border-radius:3px;margin-right:6px;vertical-align:middle}
+.note{font-size:12.5px;color:var(--muted);margin-top:16px}
+/* results */
+table{width:100%;border-collapse:collapse;font-size:15px}
+th,td{text-align:left;padding:14px 16px;border-bottom:1px solid var(--line)}
+th{color:var(--muted);font-weight:500;font-size:13px;text-transform:uppercase;letter-spacing:.4px}
+td.m{font-family:var(--mono)}
+.bar{height:8px;border-radius:4px;background:#1d2840;overflow:hidden;min-width:120px}
+.bar span{display:block;height:100%;background:linear-gradient(90deg,var(--accent),var(--violet))}
+.best{color:var(--ok);font-weight:600}
+/* arch */
+pre.arch{font-family:var(--mono);font-size:13px;color:#c9d6ee;background:var(--bg2);border:1px solid var(--line);border-radius:var(--radius);padding:24px;overflow-x:auto;line-height:1.7}
+.stack{display:flex;flex-wrap:wrap;gap:10px}
+.stack span{font-family:var(--mono);font-size:13px;padding:7px 12px;border:1px solid var(--line);border-radius:8px;background:var(--card)}
+footer{padding:48px 0;color:var(--muted);font-size:14px}
+footer .wrap{display:flex;justify-content:space-between;flex-wrap:wrap;gap:16px}
+@media(max-width:900px){
+  .grid2,.grid3{grid-template-columns:1fr}
+  .stats{grid-template-columns:1fr 1fr}
+  .pipeline{grid-template-columns:1fr}
+  .step{margin:0 0 22px 0}
+  .step:not(:last-child)::after{right:50%;top:auto;bottom:-17px;transform:translateX(50%) rotate(135deg)}
+  nav ul{display:none}
+}
+</style>
+</head>
+<body>
+
+<nav>
+  <div class="wrap">
+    <a class="brand" href="#"><span>liaison</span>.detect</a>
+    <ul>
+      <li><a href="#problem">Problem</a></li>
+      <li><a href="#pipeline">Pipeline</a></li>
+      <li><a href="#demo">Example</a></li>
+      <li><a href="#apps">Applications</a></li>
+      <li><a href="#results">Results</a></li>
+      <li><a href="#architecture">Architecture</a></li>
+    </ul>
+  </div>
+</nav>
+
+<header class="hero">
+  <div class="wrap">
+    <div class="eyebrow">Speech processing · Phoneme recognition · Full-stack</div>
+    <h1>Automatic detection of French liaisons in read speech</h1>
+    <p class="lead">A phoneme-level system that listens to a learner reading French aloud and tells whether each expected liaison was produced or omitted, with three applications built on top of it: an annotation and analysis platform, a pronunciation trainer, and a model comparison tool.</p>
+    <div class="cta">
+      <a class="btn primary" href="#pipeline">How it works</a>
+      <a class="btn" href="#results">Model results</a>
+      <a class="btn" href="https://github.com/Yasineert">GitHub profile</a>
+    </div>
+    <div class="stats">
+      <div class="stat"><b>406k+</b><small>annotations in the corpus</small></div>
+      <div class="stat"><b>7.25%</b><small>best phoneme error rate (WavLM)</small></div>
+      <div class="stat"><b>3</b><small>CTC models fine-tuned and compared</small></div>
+      <div class="stat"><b>3</b><small>applications, one Docker Compose stack</small></div>
+    </div>
+  </div>
+</header>
+
+<section id="problem">
+  <div class="wrap grid2">
+    <div>
+      <h2>The problem</h2>
+      <p class="sub">In French, a normally silent final consonant is sometimes pronounced when the next word starts with a vowel. This is a <em>liaison</em>. Some are required, some are optional, and some are forbidden. They are hard for children and second-language learners, and checking them by ear does not scale.</p>
+      <ul class="clean">
+        <li>Liaisons are short, sub-word events: word-level ASR transcripts hide them.</li>
+        <li>The decision depends on context: grammar, word class and register.</li>
+        <li>Learners need precise, immediate feedback on each liaison, not a global score.</li>
+      </ul>
+    </div>
+    <div class="card">
+      <div class="eyebrow">Example</div>
+      <div class="example">les enfants arrivent</div>
+      <div class="ipa">/le<span class="link">z</span>‿ɑ̃fɑ̃ a.ʁiv/</div>
+      <p style="margin-top:14px">The <span class="link">/z/</span> between <em>les</em> and <em>enfants</em> is a required liaison. If the reader says <span class="ipa">/le ɑ̃fɑ̃/</span>, the system marks it as <strong style="color:var(--miss)">omitted</strong>.</p>
+      <span class="tag">VL = realised liaison</span><span class="tag">XL = omitted liaison</span>
+    </div>
+  </div>
+</section>
+
+<section id="pipeline">
+  <div class="wrap">
+    <h2>Detection pipeline</h2>
+    <p class="sub">The system compares what the reader <em>should</em> say with what they <em>actually</em> said, at the level of phonemes.</p>
+    <div class="pipeline">
+      <div class="step"><div class="n">01</div><h4>Text</h4><p>Sentence or paragraph shown to the reader.</p></div>
+      <div class="step"><div class="n">02</div><h4>Reference phonemes</h4><p>eSpeak NG phonemization plus liaison rules give the expected sequence.</p></div>
+      <div class="step"><div class="n">03</div><h4>Audio → phonemes</h4><p>A fine-tuned CTC model (WavLM) predicts the phonemes actually spoken.</p></div>
+      <div class="step"><div class="n">04</div><h4>Alignment</h4><p>Reference and prediction are aligned around each liaison site.</p></div>
+      <div class="step"><div class="n">05</div><h4>Decision</h4><p>Each liaison is labelled realised (VL) or omitted (XL), with feedback.</p></div>
+    </div>
+  </div>
+</section>
+
+<section id="demo">
+  <div class="wrap">
+    <h2>What the output looks like</h2>
+    <p class="sub">Choose a reading to see how liaison sites are labelled after alignment.</p>
+    <div class="demo">
+      <div class="demo-tabs" id="tabs"></div>
+      <div class="sentence" id="sentence"></div>
+      <dl class="rows">
+        <dt>Reference</dt><dd id="ref"></dd>
+        <dt>Predicted</dt><dd id="pred"></dd>
+        <dt>Feedback</dt><dd id="fb" style="font-family:Inter,sans-serif"></dd>
+      </dl>
+      <div class="legend"><span><i style="background:var(--ok)"></i>Realised (VL)</span><span><i style="background:var(--miss)"></i>Omitted (XL)</span></div>
+      <p class="note">Illustrative examples showing the output format. They are not recordings from the corpus.</p>
+    </div>
+  </div>
+</section>
+
+<section id="apps">
+  <div class="wrap">
+    <h2>Three applications, one stack</h2>
+    <p class="sub">The model is used in three tools, each for a different user: researchers, learners and ML engineers.</p>
+    <div class="grid3">
+      <div class="card">
+        <h3>LiaisonCheck</h3>
+        <p>Annotation and analysis platform: browse the re-annotated corpus, analyse an audio file, inspect each liaison and benchmark models. Includes verified accounts, an activity log and team discussions.</p>
+        <span class="tag">React</span><span class="tag">Express</span><span class="tag">PostgreSQL</span><span class="tag">FFmpeg</span>
+      </div>
+      <div class="card">
+        <h3>Liaison et Moi</h3>
+        <p>Pronunciation trainer: read a sentence, record yourself, get feedback on every liaison and follow your progress over time.</p>
+        <span class="tag">React</span><span class="tag">Node.js</span><span class="tag">WavLM</span><span class="tag">SQLite</span>
+      </div>
+      <div class="card">
+        <h3>Model comparator</h3>
+        <p>Load a short WAV file and compare the phoneme predictions of two fine-tuned checkpoints side by side. Metrics history is stored for reproducibility.</p>
+        <span class="tag">Python</span><span class="tag">PyTorch</span><span class="tag">Transformers</span>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section id="results">
+  <div class="wrap">
+    <h2>Model results</h2>
+    <p class="sub">Three self-supervised speech models were fine-tuned with a CTC head for French phoneme recognition. Phoneme error rate (PER), lower is better.</p>
+    <div class="card" style="padding:8px 10px;overflow-x:auto">
+      <table>
+        <thead><tr><th>Model</th><th>First run (3 epochs)</th><th>Final run</th><th>Epochs</th><th style="width:30%">Final PER</th></tr></thead>
+        <tbody>
+          <tr><td>WavLM Base → Base Plus</td><td class="m">15.69%</td><td class="m best">7.247%</td><td class="m">10</td><td><div class="bar"><span style="width:72.5%"></span></div></td></tr>
+          <tr><td>Wav2Vec2 Base</td><td class="m">14.02%</td><td class="m">7.813%</td><td class="m">10</td><td><div class="bar"><span style="width:78.1%"></span></div></td></tr>
+          <tr><td>HuBERT Base LS-960</td><td class="m">18.35%</td><td class="m">9.757%</td><td class="m">5.5</td><td><div class="bar"><span style="width:97.6%"></span></div></td></tr>
+        </tbody>
+      </table>
+    </div>
+    <p class="note">Bar length is relative to 10% PER. WavLM Base Plus was selected for audio feedback in the pronunciation trainer.</p>
+  </div>
+</section>
+
+<section id="architecture">
+  <div class="wrap grid2">
+    <div>
+      <h2>Architecture</h2>
+      <p class="sub" style="margin-bottom:24px">A single Docker Compose stack runs the three applications and a landing page. Each service exposes its own port and shares the Python speech pipeline.</p>
+      <div class="stack">
+        <span>Python</span><span>PyTorch</span><span>Hugging Face</span><span>WavLM</span><span>wav2vec2</span><span>HuBERT</span><span>eSpeak NG</span><span>React</span><span>Node.js</span><span>Express</span><span>PostgreSQL</span><span>SQLite</span><span>Nginx</span><span>FFmpeg</span><span>Docker Compose</span><span>WebRTC</span>
+      </div>
+    </div>
+<pre class="arch">Browser
+├── :5173 → Nginx → React · Liaison et Moi
+│                  └── /api → Node.js → exercises + SQLite
+│                                      └── Python → eSpeak NG / WavLM
+├── :5181 → Express → React · LiaisonCheck + /api
+│                     ├── PostgreSQL : annotations, analyses, accounts
+│                     └── FFmpeg → Python → CTC → liaison comparison
+└── :7861 → Python comparator → WavLM checkpoints + SQLite metrics</pre>
+  </div>
+</section>
+
+<section>
+  <div class="wrap grid2">
+    <div>
+      <h2>My contribution</h2>
+      <ul class="clean">
+        <li>Fine-tuned and benchmarked WavLM, Wav2Vec2 and HuBERT for French phoneme recognition.</li>
+        <li>Designed the phonemization and alignment pipeline used for liaison decisions.</li>
+        <li>Built the three applications: frontend, APIs, databases and audio processing.</li>
+        <li>Packaged the whole system as a reproducible Docker Compose stack.</li>
+      </ul>
+    </div>
+    <div class="card">
+      <h3>About the source code</h3>
+      <p>This is a research project. The source code, the annotated corpus, the audio recordings and the trained checkpoints are private. This page presents the approach, the architecture and the results.</p>
+    </div>
+  </div>
+</section>
+
+<footer>
+  <div class="wrap">
+    <span>French Liaison Detection · Yasineert</span>
+    <a href="https://github.com/Yasineert">github.com/Yasineert</a>
+  </div>
+</footer>
+
+<script>
+const examples=[
+  {label:"Correct reading",parts:["Les",["z","vl"],"enfants arrivent."],ref:"l e z ‖ ɑ̃ f ɑ̃ a ʁ i v",pred:"l e z ‖ ɑ̃ f ɑ̃ a ʁ i v",fb:"The required liaison /z/ is realised."},
+  {label:"Omitted liaison",parts:["Les",["z","xl"],"enfants arrivent."],ref:"l e z ‖ ɑ̃ f ɑ̃ a ʁ i v",pred:"l e ‖ ɑ̃ f ɑ̃ a ʁ i v",fb:"Required liaison /z/ between « les » and « enfants » is missing."},
+  {label:"Two liaisons",parts:["Ils",["z","vl"],"ont",["t","xl"],"appris."],ref:"i l z ‖ ɔ̃ t ‖ a p ʁ i",pred:"i l z ‖ ɔ̃ ‖ a p ʁ i",fb:"Required /z/ after « ils » is realised. Optional /t/ after « ont » is not realised."},
+  {label:"/t/ liaison",parts:["Un grand",["t","vl"],"homme."],ref:"œ̃ ɡ ʁ ɑ̃ t ‖ ɔ m",pred:"œ̃ ɡ ʁ ɑ̃ t ‖ ɔ m",fb:"The liaison /t/ after « grand » is realised."}
+];
+const tabs=document.getElementById('tabs');
+function show(i){
+  [...tabs.children].forEach((b,j)=>b.classList.toggle('on',i===j));
+  const e=examples[i];
+  document.getElementById('sentence').innerHTML=e.parts.map(p=>Array.isArray(p)?`<span class="lk ${p[1]}" title="${p[1]==='vl'?'Realised':'Omitted'}">${p[1]==='vl'?p[0]:'∅'}</span>`:p).join(' ');
+  document.getElementById('ref').textContent=e.ref;
+  document.getElementById('pred').textContent=e.pred;
+  document.getElementById('fb').textContent=e.fb;
+}
+examples.forEach((e,i)=>{const b=document.createElement('button');b.textContent=e.label;b.onclick=()=>show(i);tabs.appendChild(b)});
+show(0);
+</script>
+</body>
+</html>
